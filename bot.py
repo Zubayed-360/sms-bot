@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 API_KEY = os.getenv("kSv4sToA8J1XnSMdrzCyvOYSAt7EVjKU")
-BOT_TOKEN = os.getenv("8682824157:AAHbEe9794qQnpNKSVqirherACuIcqLCzdc")
+BOT_TOKEN = os.getenv("AAHbEe9794qQnpNKSVqirherACuIcqLCzdc")
 BASE_URL = "https://smsbower.com/stubs/handler_api.php"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
