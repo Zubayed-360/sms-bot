@@ -35,7 +35,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❌ No number available.")
 
-app = ApplicationBuilder().token(8682824157:AAHbEe9794qQnpNKSVqirherACuIcqLCzdc).build()
+app = ApplicationBuilder().token(BOT_TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 
 app.run_polling()
