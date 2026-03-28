@@ -23,7 +23,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"📞 Number: {number}\n⏳ Waiting for SMS...")
 
             for i in range(20):
-                await asyncio.sleep(5)  # FIXED
+                await asyncio.sleep(5)
 
                 status_url = f"{BASE_URL}?api_key={API_KEY}&action=getStatus&id={activation_id}"
                 status = requests.get(status_url).text
