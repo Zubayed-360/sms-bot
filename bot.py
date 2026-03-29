@@ -8,29 +8,21 @@ BOT_TOKEN = "8682824157:AAHbEe9794qQnpNKSVqirherACuIcqLCzdc"
 
 BASE_URL = "https://smsbower.com/stubs/handler_api.php"
 
-# user selected country
-user_country = {}
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⏳ Loading countries & prices...")
+    await update.message.reply_text("⏳ Loading country & price list...")
 
     url = f"{BASE_URL}?api_key={API_KEY}&action=getPrices&service=tgff"
     res = requests.get(url).text
 
-    # show limited text (telegram limit)
     text = "🌍 Country + Price List:\n\n"
     text += res[:3500]
-
     text += "\n\n📌 Reply with country ID (example: 22)"
 
     await update.message.reply_text(text)
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
     cid = update.message.text.strip()
-
-    user_country[user_id] = cid
 
     await update.message.reply_text(f"✅ Country selected: {cid}\n📲 Getting number...")
 
@@ -44,10 +36,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(f"📞 Number: {number}\n⏳ Waiting SMS...")
 
-        for i in range(20):
+        for _ in range(20):
             await asyncio.sleep(5)
 
-            status = requests.get(f"{BASE_URL}?api_key={API_KEY}&action=getStatus&id={activation_id}").text
+            status = requests.get(
+                f"{BASE_URL}?api_key={API_KEY}&action=getStatus&id={activation_id}"
+            ).text
 
             if "STATUS_OK" in status:
                 code = status.split(":")[1]
@@ -55,7 +49,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
         await update.message.reply_text("❌ SMS not received")
-
     else:
         await update.message.reply_text("❌ No number available")
 
