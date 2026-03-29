@@ -1,47 +1,69 @@
 import requests
 import asyncio
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 API_KEY = "kSv4sToA8J1XnSMdrzCyvOYSAt7EVjKU"
 BOT_TOKEN = "8682824157:AAHbEe9794qQnpNKSVqirherACuIcqLCzdc"
 
 BASE_URL = "https://smsbower.com/stubs/handler_api.php"
 
+# user selected country
+user_country = {}
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📲 Getting number...")
+    await update.message.reply_text("⏳ Loading countries & prices...")
 
-    try:
-        url = f"{BASE_URL}?api_key={API_KEY}&action=getNumber&service=tgff&country=22"
-        res = requests.get(url).text
+    url = f"{BASE_URL}?api_key={API_KEY}&action=getPrices&service=tgff"
+    res = requests.get(url).text
 
-        if "ACCESS_NUMBER" in res:
-            data = res.split(":")
-            activation_id = data[1]
-            number = data[2]
+    # show limited text (telegram limit)
+    text = "🌍 Country + Price List:\n\n"
+    text += res[:3500]
 
-            await update.message.reply_text(f"📞 Number: {number}\n⏳ Waiting for SMS...")
+    text += "\n\n📌 Reply with country ID (example: 22)"
 
-            for i in range(20):
-                await asyncio.sleep(5)
+    await update.message.reply_text(text)
 
-                status_url = f"{BASE_URL}?api_key={API_KEY}&action=getStatus&id={activation_id}"
-                status = requests.get(status_url).text
 
-                if "STATUS_OK" in status:
-                    code = status.split(":")[1]
-                    await update.message.reply_text(f"✅ SMS Code: {code}")
-                    return
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    cid = update.message.text.strip()
 
-            await update.message.reply_text("❌ SMS not received.")
-        else:
-            await update.message.reply_text("❌ No number available.")
+    user_country[user_id] = cid
 
-    except Exception as e:
-        await update.message.reply_text(f"⚠️ Error: {str(e)}")
+    await update.message.reply_text(f"✅ Country selected: {cid}\n📲 Getting number...")
+
+    url = f"{BASE_URL}?api_key={API_KEY}&action=getNumber&service=tgff&country={cid}"
+    res = requests.get(url).text
+
+    if "ACCESS_NUMBER" in res:
+        data = res.split(":")
+        activation_id = data[1]
+        number = data[2]
+
+        await update.message.reply_text(f"📞 Number: {number}\n⏳ Waiting SMS...")
+
+        for i in range(20):
+            await asyncio.sleep(5)
+
+            status = requests.get(f"{BASE_URL}?api_key={API_KEY}&action=getStatus&id={activation_id}").text
+
+            if "STATUS_OK" in status:
+                code = status.split(":")[1]
+                await update.message.reply_text(f"✅ SMS Code: {code}")
+                return
+
+        await update.message.reply_text("❌ SMS not received")
+
+    else:
+        await update.message.reply_text("❌ No number available")
+
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
+
 app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 print("Bot running...")
 app.run_polling()
