@@ -1,76 +1,224 @@
 import requests
 import asyncio
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+import json
 
-API_KEY = "kSv4sToA8J1XnSMdrzCyvOYSAt7EVjKU"
-BOT_TOKEN = "8682824157:AAHbEe9794qQnpNKSVqirherACuIcqLCzdc"
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-BASE_URL = "https://smsbower.com/stubs/handler_api.php"
+BOT_TOKEN="8682824157:AAHbEe9794qQnpNKSVqirherACuIcqLCzdc"
+API_KEY="kSv4sToA8J1XnSMdrzCyvOYSAt7EVjKU"
 
+ADMIN_ID=@mdzubayed
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⏳ Loading country & price list...")
+BASE="https://smsbower.com/stubs/handler_api.php"
 
-    url = f"{BASE_URL}?api_key={API_KEY}&action=getPrices&service=tgfr"
-    res = requests.get(url).text
+SELL_PRICE=3
 
-    text = "🌍 Country + Price List:\n\n"
-    text += res[:3500]
-    text += "\n\n📩 Reply with country ID (example: 22)"
-
-    await update.message.reply_text(text)
+DB="db.json"
 
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def load():
+    try:
+        return json.load(open(DB))
+    except:
+        return {"users":{}}
 
-    cid = update.message.text.strip()
 
-    await update.message.reply_text(f"✅ Country selected: {cid}\n⏳ Getting number...")
+def save(data):
+    json.dump(data,open(DB,"w"))
 
-    url = f"{BASE_URL}?api_key={API_KEY}&action=getNumber&service=tgfr&country={cid}"
 
-    res = requests.get(url).text
+async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
-    if "ACCESS_NUMBER" in res:
+    uid=str(update.effective_user.id)
 
-        data = res.split(":")
+    db=load()
 
-        activation_id = data[1]
+    if uid not in db["users"]:
 
-        number = data[2]
+        db["users"][uid]={
+            "balance":0
+        }
 
-        await update.message.reply_text(f"📱 Number: {number}\n⏳ Waiting SMS...")
+        save(db)
 
-        for i in range(20):
+    bal=db["users"][uid]["balance"]
+
+    kb=[
+
+    [InlineKeyboardButton("📱 Buy Telegram Number",callback_data="buy")],
+
+    [InlineKeyboardButton("💰 Balance",callback_data="bal")]
+
+    ]
+
+    await update.message.reply_text(
+
+    f"Balance: {bal}৳",
+
+    reply_markup=InlineKeyboardMarkup(kb)
+
+    )
+
+
+async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
+
+    q=update.callback_query
+
+    await q.answer()
+
+    uid=str(q.from_user.id)
+
+    db=load()
+
+    if q.data=="bal":
+
+        bal=db["users"][uid]["balance"]
+
+        await q.message.reply_text(f"💰 Balance: {bal}৳")
+
+
+
+    if q.data=="buy":
+
+        if db["users"][uid]["balance"]<SELL_PRICE:
+
+            await q.message.reply_text("❌ Low balance")
+
+            return
+
+
+        await q.message.reply_text("⏳ Finding cheap number...")
+
+
+        prices=requests.get(
+
+        f"{BASE}?api_key={API_KEY}&action=getPrices&service=tg"
+
+        ).json()
+
+
+        cheapest=None
+
+        for c in prices:
+
+            p=float(prices[c]["tg"]["cost"])
+
+            if cheapest is None:
+
+                cheapest=(c,p)
+
+            else:
+
+                if p<cheapest[1]:
+
+                    cheapest=(c,p)
+
+
+        country=cheapest[0]
+
+
+        res=requests.get(
+
+        f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={country}"
+
+        ).text
+
+
+        if "ACCESS_NUMBER" not in res:
+
+            await q.message.reply_text("❌ No number")
+
+            return
+
+
+        data=res.split(":")
+
+        act=data[1]
+
+        num=data[2]
+
+
+        db["users"][uid]["balance"]-=SELL_PRICE
+
+        save(db)
+
+
+        await q.message.reply_text(
+
+        f"📱 Number:\n{num}\n\n⏳ Waiting SMS..."
+
+        )
+
+
+        for i in range(30):
 
             await asyncio.sleep(5)
 
-            status = requests.get(
-                f"{BASE_URL}?api_key={API_KEY}&action=getStatus&id={activation_id}"
+            st=requests.get(
+
+            f"{BASE}?api_key={API_KEY}&action=getStatus&id={act}"
+
             ).text
 
-            if "STATUS_OK" in status:
 
-                code = status.split(":")[1]
+            if "STATUS_OK" in st:
 
-                await update.message.reply_text(f"✅ SMS Code: {code}")
+                code=st.split(":")[1]
+
+                await q.message.reply_text(
+
+                f"✅ Code:\n{code}"
+
+                )
 
                 return
 
-        await update.message.reply_text("❌ SMS not received")
 
-    else:
-
-        await update.message.reply_text("❌ No number available")
+        await q.message.reply_text("❌ Timeout")
 
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-app.add_handler(CommandHandler("start", start))
+async def add(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    if update.effective_user.id!=ADMIN_ID:
 
-print("Bot running...")
+        return
+
+
+    uid=context.args[0]
+
+    amount=int(context.args[1])
+
+
+    db=load()
+
+    if uid not in db["users"]:
+
+        db["users"][uid]={
+
+        "balance":0
+
+        }
+
+
+    db["users"][uid]["balance"]+=amount
+
+    save(db)
+
+
+    await update.message.reply_text("Balance added")
+
+
+app=ApplicationBuilder().token(BOT_TOKEN).build()
+
+app.add_handler(CommandHandler("start",start))
+
+app.add_handler(CommandHandler("addbalance",add))
+
+app.add_handler(CallbackQueryHandler(button))
+
+
+print("Running")
 
 app.run_polling()
