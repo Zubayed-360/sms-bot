@@ -16,6 +16,9 @@ SELL_PRICE=3
 
 DB="db.json"
 
+COUNTRY="27"
+OPERATOR="3237"
+
 
 def load():
     try:
@@ -35,32 +38,42 @@ async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
     db=load()
 
     if uid not in db["users"]:
+
         db["users"][uid]={
             "balance":0
         }
+
         save(db)
 
     bal=db["users"][uid]["balance"]
 
     kb=[
+
         [InlineKeyboardButton("📱 Buy Telegram Number",callback_data="buy")],
+
         [InlineKeyboardButton("💰 Balance",callback_data="bal")]
+
     ]
 
     await update.message.reply_text(
-        f"Balance: {bal}৳",
+
+        f"💰 Balance: {bal}৳",
+
         reply_markup=InlineKeyboardMarkup(kb)
+
     )
 
 
 async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
     q=update.callback_query
+
     await q.answer()
 
     uid=str(q.from_user.id)
 
     db=load()
+
 
     if q.data=="bal":
 
@@ -74,37 +87,32 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
         if db["users"][uid]["balance"]<SELL_PRICE:
 
             await q.message.reply_text("❌ Low balance")
+
             return
 
 
-        await q.message.reply_text("🇿🇦 Finding South Africa number...")
+        await q.message.reply_text("🔎 Finding cheapest Telegram number...")
 
-        country="27"
 
-        for i in range(5):
+        res=requests.get(
 
-            res=requests.get(
-                f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={country}"
-            ).text
+        f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={COUNTRY}&operator={OPERATOR}"
 
-            if "ACCESS_NUMBER" in res:
+        ).text
 
-                data=res.split(":")
 
-                raw_num=data[2]
+        if "ACCESS_NUMBER" not in res:
 
-                if raw_num.startswith("27"):
+            await q.message.reply_text("❌ Stock empty")
 
-                    act=data[1]
-
-                    num="+"+raw_num
-
-                    break
-
-        else:
-
-            await q.message.reply_text("❌ No South Africa number")
             return
+
+
+        data=res.split(":")
+
+        act=data[1]
+
+        num="+"+data[2]
 
 
         db["users"][uid]["balance"]-=SELL_PRICE
@@ -113,16 +121,20 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
 
         await q.message.reply_text(
-            f"📱 Number:\n{num}\n\n⏳ Waiting SMS..."
+
+        f"📱 Number:\n{num}\n\n⏳ Waiting SMS code..."
+
         )
 
 
-        for i in range(30):
+        for i in range(60):
 
             await asyncio.sleep(5)
 
             st=requests.get(
-                f"{BASE}?api_key={API_KEY}&action=getStatus&id={act}"
+
+            f"{BASE}?api_key={API_KEY}&action=getStatus&id={act}"
+
             ).text
 
 
@@ -131,36 +143,45 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
                 code=st.split(":")[1]
 
                 await q.message.reply_text(
-                    f"✅ Code:\n{code}"
+
+                f"✅ Telegram Code:\n{code}"
+
                 )
 
                 return
 
 
-        await q.message.reply_text("❌ Timeout")
+        await q.message.reply_text("❌ SMS timeout")
 
 
 
 async def add(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
     if update.effective_user.id!=ADMIN_ID:
+
         return
+
 
     uid=context.args[0]
 
     amount=int(context.args[1])
+
 
     db=load()
 
     if uid not in db["users"]:
 
         db["users"][uid]={
-            "balance":0
+
+        "balance":0
+
         }
+
 
     db["users"][uid]["balance"]+=amount
 
     save(db)
+
 
     await update.message.reply_text("✅ Balance added")
 
