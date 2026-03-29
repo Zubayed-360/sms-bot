@@ -88,7 +88,7 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         await q.message.reply_text("🇿🇦 Finding South Africa number...")
 
- country="27"
+     country="27"
 
 for i in range(5):
 
