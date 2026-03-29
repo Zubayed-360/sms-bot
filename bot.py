@@ -38,7 +38,7 @@ def menu():
 
     return InlineKeyboardMarkup([
 
-        [InlineKeyboardButton("📱 Buy South Africa Number",callback_data="buy")],
+        [InlineKeyboardButton("📱 Buy Number",callback_data="buy")],
 
         [InlineKeyboardButton("💰 Balance",callback_data="bal")]
 
@@ -61,9 +61,7 @@ async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         save(db)
 
-
     bal=db["users"][uid]["balance"]
-
 
     await update.message.reply_text(
 
@@ -72,6 +70,33 @@ async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
         reply_markup=menu()
 
     )
+
+
+async def get_price_list():
+
+    try:
+
+        r=requests.get(
+        f"{BASE}?api_key={API_KEY}&action=getPrices&service={SERVICE}&country={COUNTRY}"
+        ).json()
+
+        operators=[]
+
+        for op in r[COUNTRY][SERVICE]:
+
+            price=r[COUNTRY][SERVICE][op]["cost"]
+
+            count=r[COUNTRY][SERVICE][op]["count"]
+
+            operators.append((op,price,count))
+
+        operators.sort(key=lambda x: float(x[1]))
+
+        return operators
+
+    except:
+
+        return []
 
 
 async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
@@ -91,92 +116,108 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         await q.message.reply_text(
 
-            f"💰 Balance: {bal}৳",
+        f"💰 Balance: {bal}৳",
 
-            reply_markup=menu()
+        reply_markup=menu()
 
         )
 
 
     elif q.data=="buy":
 
-        await buy_number(q)
+        ops=await get_price_list()
+
+        if not ops:
+
+            await q.message.reply_text("❌ No stock")
+
+            return
+
+        kb=[]
+
+        for op,price,count in ops[:10]:
+
+            txt=f"{price}$ | {count} pcs"
+
+            kb.append([InlineKeyboardButton(txt,callback_data=f"op_{op}_{price}")])
+
+        kb.append([InlineKeyboardButton("⬅ Back",callback_data="back")])
+
+        await q.message.reply_text(
+
+        "Select Number Price:",
+
+        reply_markup=InlineKeyboardMarkup(kb)
+
+        )
 
 
+    elif "op_" in q.data:
 
-async def buy_number(q):
+        data=q.data.split("_")
 
-    await q.message.reply_text("🔎 Finding South Africa number...")
+        operator=data[1]
 
+        price=float(data[2])
 
-    found=False
-
-
-    for i in range(10):
-
-        try:
-
-            res=requests.get(
-
-            f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country=27",
-
-            timeout=15
-
-            ).text
+        await buy_number(q,operator,price)
 
 
-            if "ACCESS_NUMBER" in res:
+    elif q.data=="back":
 
-                data=res.split(":")
+        await q.message.reply_text(
 
-                raw=data[2]
+        "Main Menu",
 
+        reply_markup=menu()
 
-                if raw.startswith("27"):
-
-                    act=data[1]
-
-                    num="+"+raw
-
-                    found=True
-
-                    break
+        )
 
 
-        except:
+async def buy_number(q,operator,price):
 
-            pass
-
-
-
-    if not found:
-
-        await q.message.reply_text("❌ South Africa stock empty")
-
-        return
+    await q.message.reply_text("🔎 Buying number...")
 
 
+    try:
 
-    await q.message.reply_text(
+        res=requests.get(
 
-    f"📱 Number:\n{num}\n\n⏳ Waiting SMS..."
+        f"{BASE}?api_key={API_KEY}&action=getNumber&service={SERVICE}&country={COUNTRY}&operator={operator}",
 
-    )
+        timeout=20
 
-
-
-    for i in range(80):
-
-        await asyncio.sleep(3)
+        ).text
 
 
-        try:
+        if "ACCESS_NUMBER" not in res:
+
+            await q.message.reply_text("❌ Stock empty")
+
+            return
+
+
+        data=res.split(":")
+
+        act=data[1]
+
+        num="+"+data[2]
+
+
+        await q.message.reply_text(
+
+        f"📱 Number:\n{num}\n💲 Price: {price}$\n\n⏳ Waiting SMS..."
+
+        )
+
+
+        for i in range(100):
+
+            await asyncio.sleep(3)
 
             st=requests.get(
 
-            f"{BASE}?api_key={API_KEY}&action=getStatus&id={act}",
-
-            timeout=15
+            f"{BASE}?api_key={API_KEY}&action=getStatus&id={act}"
 
             ).text
 
@@ -184,7 +225,6 @@ async def buy_number(q):
             if "STATUS_OK" in st:
 
                 code=st.split(":")[1]
-
 
                 await q.message.reply_text(
 
@@ -195,13 +235,21 @@ async def buy_number(q):
                 return
 
 
-        except:
+            if "STATUS_CANCEL" in st:
 
-            pass
+                return
 
 
+        requests.get(
 
-    await q.message.reply_text("❌ SMS timeout")
+        f"{BASE}?api_key={API_KEY}&action=setStatus&id={act}&status=8"
+        )
+
+        await q.message.reply_text("❌ SMS timeout")
+
+    except:
+
+        await q.message.reply_text("❌ API error")
 
 
 
@@ -216,9 +264,7 @@ async def add(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
     amount=int(context.args[1])
 
-
     db=load()
-
 
     if uid not in db["users"]:
 
@@ -228,12 +274,9 @@ async def add(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         }
 
-
     db["users"][uid]["balance"]+=amount
 
-
     save(db)
-
 
     await update.message.reply_text("✅ Balance added")
 
