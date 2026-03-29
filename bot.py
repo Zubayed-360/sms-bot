@@ -8,7 +8,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 BOT_TOKEN="8682824157:AAHbEe9794qQnpNKSVqirherACuIcqLCzdc"
 API_KEY="kSv4sToA8J1XnSMdrzCyvOYSAt7EVjKU"
 
-ADMIN_ID=PUT_ADMIN_ID
+ADMIN_ID=7921810762
 
 BASE="https://smsbower.com/stubs/handler_api.php"
 
