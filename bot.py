@@ -8,26 +8,21 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 BOT_TOKEN="8682824157:AAHbEe9794qQnpNKSVqirherACuIcqLCzdc"
 API_KEY="kSv4sToA8J1XnSMdrzCyvOYSAt7EVjKU"
 
-ADMIN_ID=7921810762
+ADMIN_ID=PUT_ADMIN_ID
 
 BASE="https://smsbower.com/stubs/handler_api.php"
 
 DB="db.json"
 
 COUNTRY="27"
-
-PRICES={
-"3237":3,
-"3205":3,
-"2840":3,
-"3109":3
-}
+SERVICE="tg"
 
 
 def load():
 
     try:
-        return json.load(open(DB))
+        with open(DB) as f:
+            return json.load(f)
 
     except:
         return {"users":{}}
@@ -35,22 +30,21 @@ def load():
 
 def save(data):
 
-    json.dump(data,open(DB,"w"))
+    with open(DB,"w") as f:
+        json.dump(data,f,indent=4)
 
 
-def menu(bal):
+def menu():
 
-    kb=[
+    return InlineKeyboardMarkup([
 
-    [InlineKeyboardButton("📱 Buy Number",callback_data="buy")],
+        [InlineKeyboardButton("📱 Buy Number",callback_data="buy")],
 
-    [InlineKeyboardButton("📊 Price List",callback_data="price")],
+        [InlineKeyboardButton("📊 Price List",callback_data="price")],
 
-    [InlineKeyboardButton("💰 Balance",callback_data="bal")]
+        [InlineKeyboardButton("💰 Balance",callback_data="bal")]
 
-    ]
-
-    return InlineKeyboardMarkup(kb)
+    ])
 
 
 async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
@@ -63,7 +57,7 @@ async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         db["users"][uid]={
 
-        "balance":0
+            "balance":0
 
         }
 
@@ -75,9 +69,9 @@ async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
 
-    f"👋 Welcome\n\n💰 Balance: {bal}৳",
+        f"👋 Welcome\n\n💰 Balance: {bal}৳",
 
-    reply_markup=menu(bal)
+        reply_markup=menu()
 
     )
 
@@ -99,78 +93,70 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         await q.message.reply_text(
 
-        f"💰 Balance: {bal}৳",
+            f"💰 Balance: {bal}৳",
 
-        reply_markup=menu(bal)
+            reply_markup=menu()
 
         )
 
 
-    if q.data=="buy":
+    elif q.data=="price":
 
         kb=[
 
-        [InlineKeyboardButton("💎 Gold 3৳",callback_data="3237")],
+        [InlineKeyboardButton("🥉 Bronze",callback_data="bronze")],
 
-        [InlineKeyboardButton("🥉 Bronze 3৳",callback_data="3205")],
+        [InlineKeyboardButton("🥈 Silver",callback_data="silver")],
 
-        [InlineKeyboardButton("🥈 Silver 3৳",callback_data="2840")],
+        [InlineKeyboardButton("🥇 Gold",callback_data="gold")],
 
-        [InlineKeyboardButton("🔙 Back",callback_data="menu")]
+        [InlineKeyboardButton("⬅ Back",callback_data="back")]
 
         ]
 
-
         await q.message.reply_text(
 
-        "Select Number Price:",
+        "Select Number Type",
 
         reply_markup=InlineKeyboardMarkup(kb)
 
         )
 
 
-    if q.data=="price":
-
-        await q.message.reply_text(
-
-        "📊 Telegram Price List\n\nGold = 3৳\nBronze = 3৳\nSilver = 3৳",
-
-        reply_markup=menu(db["users"][uid]["balance"])
-
-        )
-
-
-    if q.data=="menu":
-
-        bal=db["users"][uid]["balance"]
+    elif q.data=="back":
 
         await q.message.reply_text(
 
         "Main Menu",
 
-        reply_markup=menu(bal)
+        reply_markup=menu()
 
         )
 
 
-    if q.data in PRICES:
+    elif q.data=="buy":
 
-        price=PRICES[q.data]
-
-        if db["users"][uid]["balance"]<price:
-
-            await q.message.reply_text("❌ Low balance")
-
-            return
+        await buy_number(q)
 
 
-        await q.message.reply_text("🔎 Buying number...")
+    elif q.data in ["bronze","silver","gold"]:
 
+        await buy_number(q)
+
+
+
+async def buy_number(q):
+
+    await q.message.reply_text("🔎 Finding Telegram number...")
+
+
+    try:
 
         res=requests.get(
 
-        f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={COUNTRY}&operator={q.data}"
+        f"{BASE}?api_key={API_KEY}&action=getNumber&service={SERVICE}&country={COUNTRY}",
+
+        timeout=15
 
         ).text
 
@@ -189,11 +175,6 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
         num="+"+data[2]
 
 
-        db["users"][uid]["balance"]-=price
-
-        save(db)
-
-
         await q.message.reply_text(
 
         f"📱 Number:\n{num}\n\n⏳ Waiting SMS..."
@@ -205,9 +186,12 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
             await asyncio.sleep(5)
 
+
             st=requests.get(
 
-            f"{BASE}?api_key={API_KEY}&action=getStatus&id={act}"
+            f"{BASE}?api_key={API_KEY}&action=getStatus&id={act}",
+
+            timeout=15
 
             ).text
 
@@ -215,6 +199,7 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
             if "STATUS_OK" in st:
 
                 code=st.split(":")[1]
+
 
                 await q.message.reply_text(
 
@@ -226,6 +211,11 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
 
         await q.message.reply_text("❌ SMS timeout")
+
+
+    except Exception as e:
+
+        await q.message.reply_text("❌ API Error")
 
 
 
@@ -243,6 +233,7 @@ async def add(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
     db=load()
 
+
     if uid not in db["users"]:
 
         db["users"][uid]={
@@ -254,10 +245,12 @@ async def add(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
     db["users"][uid]["balance"]+=amount
 
+
     save(db)
 
 
     await update.message.reply_text("✅ Balance added")
+
 
 
 app=ApplicationBuilder().token(BOT_TOKEN).build()
@@ -269,6 +262,6 @@ app.add_handler(CommandHandler("addbalance",add))
 app.add_handler(CallbackQueryHandler(button))
 
 
-print("Running...")
+print("Bot Running...")
 
 app.run_polling()
