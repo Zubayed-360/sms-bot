@@ -115,7 +115,7 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
                     cheapest=(c,p)
 
 
-        country=cheapest[0]
+        country="27"
 
 
         res=requests.get(
