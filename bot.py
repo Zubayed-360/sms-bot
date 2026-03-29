@@ -12,23 +12,45 @@ ADMIN_ID=7921810762
 
 BASE="https://smsbower.com/stubs/handler_api.php"
 
-SELL_PRICE=3
-
 DB="db.json"
 
 COUNTRY="27"
-OPERATOR="3237"
+
+PRICES={
+"3237":3,
+"3205":3,
+"2840":3,
+"3109":3
+}
 
 
 def load():
+
     try:
         return json.load(open(DB))
+
     except:
         return {"users":{}}
 
 
 def save(data):
+
     json.dump(data,open(DB,"w"))
+
+
+def menu(bal):
+
+    kb=[
+
+    [InlineKeyboardButton("📱 Buy Number",callback_data="buy")],
+
+    [InlineKeyboardButton("📊 Price List",callback_data="price")],
+
+    [InlineKeyboardButton("💰 Balance",callback_data="bal")]
+
+    ]
+
+    return InlineKeyboardMarkup(kb)
 
 
 async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
@@ -40,26 +62,22 @@ async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
     if uid not in db["users"]:
 
         db["users"][uid]={
-            "balance":0
+
+        "balance":0
+
         }
 
         save(db)
 
+
     bal=db["users"][uid]["balance"]
 
-    kb=[
-
-        [InlineKeyboardButton("📱 Buy Telegram Number",callback_data="buy")],
-
-        [InlineKeyboardButton("💰 Balance",callback_data="bal")]
-
-    ]
 
     await update.message.reply_text(
 
-        f"💰 Balance: {bal}৳",
+    f"👋 Welcome\n\n💰 Balance: {bal}৳",
 
-        reply_markup=InlineKeyboardMarkup(kb)
+    reply_markup=menu(bal)
 
     )
 
@@ -79,24 +97,80 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         bal=db["users"][uid]["balance"]
 
-        await q.message.reply_text(f"💰 Balance: {bal}৳")
+        await q.message.reply_text(
+
+        f"💰 Balance: {bal}৳",
+
+        reply_markup=menu(bal)
+
+        )
 
 
     if q.data=="buy":
 
-        if db["users"][uid]["balance"]<SELL_PRICE:
+        kb=[
+
+        [InlineKeyboardButton("💎 Gold 3৳",callback_data="3237")],
+
+        [InlineKeyboardButton("🥉 Bronze 3৳",callback_data="3205")],
+
+        [InlineKeyboardButton("🥈 Silver 3৳",callback_data="2840")],
+
+        [InlineKeyboardButton("🔙 Back",callback_data="menu")]
+
+        ]
+
+
+        await q.message.reply_text(
+
+        "Select Number Price:",
+
+        reply_markup=InlineKeyboardMarkup(kb)
+
+        )
+
+
+    if q.data=="price":
+
+        await q.message.reply_text(
+
+        "📊 Telegram Price List\n\nGold = 3৳\nBronze = 3৳\nSilver = 3৳",
+
+        reply_markup=menu(db["users"][uid]["balance"])
+
+        )
+
+
+    if q.data=="menu":
+
+        bal=db["users"][uid]["balance"]
+
+        await q.message.reply_text(
+
+        "Main Menu",
+
+        reply_markup=menu(bal)
+
+        )
+
+
+    if q.data in PRICES:
+
+        price=PRICES[q.data]
+
+        if db["users"][uid]["balance"]<price:
 
             await q.message.reply_text("❌ Low balance")
 
             return
 
 
-        await q.message.reply_text("🔎 Finding cheapest Telegram number...")
+        await q.message.reply_text("🔎 Buying number...")
 
 
         res=requests.get(
 
-        f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={COUNTRY}&operator={OPERATOR}"
+        f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={COUNTRY}&operator={q.data}"
 
         ).text
 
@@ -115,14 +189,14 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
         num="+"+data[2]
 
 
-        db["users"][uid]["balance"]-=SELL_PRICE
+        db["users"][uid]["balance"]-=price
 
         save(db)
 
 
         await q.message.reply_text(
 
-        f"📱 Number:\n{num}\n\n⏳ Waiting SMS code..."
+        f"📱 Number:\n{num}\n\n⏳ Waiting SMS..."
 
         )
 
@@ -144,7 +218,7 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
                 await q.message.reply_text(
 
-                f"✅ Telegram Code:\n{code}"
+                f"✅ Code:\n{code}"
 
                 )
 
