@@ -88,31 +88,33 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         await q.message.reply_text("🇿🇦 Finding South Africa number...")
 
-        country="27"
+ country="27"
 
-        res=requests.get(
-            f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={country}"
-        ).text
+for i in range(5):
 
+    res=requests.get(
+    f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={country}"
+    ).text
 
-        if "ACCESS_NUMBER" not in res:
-
-            await q.message.reply_text("❌ No number")
-
-            return
-
+    if "ACCESS_NUMBER" in res:
 
         data=res.split(":")
 
-        act=data[1]
-
         raw_num=data[2]
 
+        if raw_num.startswith("27"):
 
-        # correct number format
-        if raw_num.startswith(country):
+            act=data[1]
 
             num="+"+raw_num
+
+            break
+
+else:
+
+    await q.message.reply_text("❌ No South Africa number")
+
+    return
 
         else:
 
