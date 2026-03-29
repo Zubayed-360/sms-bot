@@ -89,34 +89,9 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
 
         await q.message.reply_text("⏳ Finding cheap number...")
-
-
-        prices=requests.get(
-
-        f"{BASE}?api_key={API_KEY}&action=getPrices&service=tg"
-
-        ).json()
-
-
-        cheapest=None
-
-        for c in prices:
-
-            p=float(prices[c]["tg"]["cost"])
-
-            if cheapest is None:
-
-                cheapest=(c,p)
-
-            else:
-
-                if p<cheapest[1]:
-
-                    cheapest=(c,p)
-
-
+         
         country="27"
-
+    
 
         res=requests.get(
 
