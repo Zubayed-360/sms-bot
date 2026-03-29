@@ -88,9 +88,13 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
             return
 
 
-        await q.message.reply_text("⏳ Finding cheap number...")
-         
-        country="27"
+        await q.message.reply_text("🇿🇦 Finding South Africa number...")
+
+country="27"
+
+res=requests.get(
+f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={country}"
+).text
     
 
         res=requests.get(
