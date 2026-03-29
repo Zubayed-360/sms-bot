@@ -38,9 +38,7 @@ def menu():
 
     return InlineKeyboardMarkup([
 
-        [InlineKeyboardButton("📱 Buy Number",callback_data="buy")],
-
-        [InlineKeyboardButton("📊 Price List",callback_data="price")],
+        [InlineKeyboardButton("📱 Buy South Africa Number",callback_data="buy")],
 
         [InlineKeyboardButton("💰 Balance",callback_data="bal")]
 
@@ -69,7 +67,7 @@ async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
 
-        f"👋 Welcome\n\n💰 Balance: {bal}৳",
+        f"👋 Welcome\n\n🇿🇦 South Africa Telegram Numbers\n💰 Balance: {bal}৳",
 
         reply_markup=menu()
 
@@ -100,46 +98,7 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
         )
 
 
-    elif q.data=="price":
-
-        kb=[
-
-        [InlineKeyboardButton("🥉 Bronze",callback_data="bronze")],
-
-        [InlineKeyboardButton("🥈 Silver",callback_data="silver")],
-
-        [InlineKeyboardButton("🥇 Gold",callback_data="gold")],
-
-        [InlineKeyboardButton("⬅ Back",callback_data="back")]
-
-        ]
-
-        await q.message.reply_text(
-
-        "Select Number Type",
-
-        reply_markup=InlineKeyboardMarkup(kb)
-
-        )
-
-
-    elif q.data=="back":
-
-        await q.message.reply_text(
-
-        "Main Menu",
-
-        reply_markup=menu()
-
-        )
-
-
     elif q.data=="buy":
-
-        await buy_number(q)
-
-
-    elif q.data in ["bronze","silver","gold"]:
 
         await buy_number(q)
 
@@ -147,45 +106,71 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
 async def buy_number(q):
 
-    await q.message.reply_text("🔎 Finding Telegram number...")
+    await q.message.reply_text("🔎 Finding South Africa number...")
 
 
-    try:
-
-        res=requests.get(
-
-        f"{BASE}?api_key={API_KEY}&action=getNumber&service={SERVICE}&country={COUNTRY}",
-
-        timeout=15
-
-        ).text
+    found=False
 
 
-        if "ACCESS_NUMBER" not in res:
+    for i in range(10):
 
-            await q.message.reply_text("❌ Stock empty")
+        try:
 
-            return
+            res=requests.get(
 
+            f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country=27",
 
-        data=res.split(":")
+            timeout=15
 
-        act=data[1]
-
-        num="+"+data[2]
-
-
-        await q.message.reply_text(
-
-        f"📱 Number:\n{num}\n\n⏳ Waiting SMS..."
-
-        )
+            ).text
 
 
-        for i in range(60):
+            if "ACCESS_NUMBER" in res:
 
-            await asyncio.sleep(5)
+                data=res.split(":")
 
+                raw=data[2]
+
+
+                if raw.startswith("27"):
+
+                    act=data[1]
+
+                    num="+"+raw
+
+                    found=True
+
+                    break
+
+
+        except:
+
+            pass
+
+
+
+    if not found:
+
+        await q.message.reply_text("❌ South Africa stock empty")
+
+        return
+
+
+
+    await q.message.reply_text(
+
+    f"📱 Number:\n{num}\n\n⏳ Waiting SMS..."
+
+    )
+
+
+
+    for i in range(80):
+
+        await asyncio.sleep(3)
+
+
+        try:
 
             st=requests.get(
 
@@ -203,19 +188,20 @@ async def buy_number(q):
 
                 await q.message.reply_text(
 
-                f"✅ Code:\n{code}"
+                f"✅ Telegram Code:\n{code}"
 
                 )
 
                 return
 
 
-        await q.message.reply_text("❌ SMS timeout")
+        except:
+
+            pass
 
 
-    except Exception as e:
 
-        await q.message.reply_text("❌ API Error")
+    await q.message.reply_text("❌ SMS timeout")
 
 
 
