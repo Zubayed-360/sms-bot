@@ -34,7 +34,7 @@ def save(data):
         json.dump(data,f,indent=4)
 
 
-def menu():
+def main_menu():
 
     return InlineKeyboardMarkup([
 
@@ -67,34 +67,40 @@ async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         f"👋 Welcome\n\n🇿🇦 South Africa Telegram Numbers\n💰 Balance: {bal}৳",
 
-        reply_markup=menu()
+        reply_markup=main_menu()
 
     )
 
 
-async def get_price_list():
+def get_prices():
 
     try:
 
-        r=requests.get(
-        f"{BASE}?api_key={API_KEY}&action=getPrices&service={SERVICE}&country={COUNTRY}"
-        ).json()
+        url=f"{BASE}?api_key={API_KEY}&action=getPrices"
+
+        r=requests.get(url,timeout=20).json()
 
         operators=[]
 
-        for op in r[COUNTRY][SERVICE]:
+        sa=r.get(COUNTRY,{}).get(SERVICE,{})
 
-            price=r[COUNTRY][SERVICE][op]["cost"]
+        for op in sa:
 
-            count=r[COUNTRY][SERVICE][op]["count"]
+            price=float(sa[op]["cost"])
 
-            operators.append((op,price,count))
+            count=int(sa[op]["count"])
 
-        operators.sort(key=lambda x: float(x[1]))
+            if count>0:
+
+                operators.append((op,price,count))
+
+        operators.sort(key=lambda x:x[1])
 
         return operators
 
-    except:
+    except Exception as e:
+
+        print("PRICE ERROR:",e)
 
         return []
 
@@ -118,47 +124,47 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         f"💰 Balance: {bal}৳",
 
-        reply_markup=menu()
+        reply_markup=main_menu()
 
         )
 
 
     elif q.data=="buy":
 
-        ops=await get_price_list()
+        ops=get_prices()
 
         if not ops:
 
-            await q.message.reply_text("❌ No stock")
+            await q.message.reply_text("❌ No South Africa stock")
 
             return
 
         kb=[]
 
-        for op,price,count in ops[:10]:
+        for op,price,count in ops[:15]:
 
-            txt=f"{price}$ | {count} pcs"
+            text=f"{price}$ | {count} pcs"
 
-            kb.append([InlineKeyboardButton(txt,callback_data=f"op_{op}_{price}")])
+            kb.append([InlineKeyboardButton(text,callback_data=f"buy_{op}_{price}")])
 
         kb.append([InlineKeyboardButton("⬅ Back",callback_data="back")])
 
         await q.message.reply_text(
 
-        "Select Number Price:",
+        "🇿🇦 Select South Africa Number Price:",
 
         reply_markup=InlineKeyboardMarkup(kb)
 
         )
 
 
-    elif "op_" in q.data:
+    elif "buy_" in q.data:
 
         data=q.data.split("_")
 
         operator=data[1]
 
-        price=float(data[2])
+        price=data[2]
 
         await buy_number(q,operator,price)
 
@@ -169,7 +175,7 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         "Main Menu",
 
-        reply_markup=menu()
+        reply_markup=main_menu()
 
         )
 
@@ -181,13 +187,9 @@ async def buy_number(q,operator,price):
 
     try:
 
-        res=requests.get(
+        url=f"{BASE}?api_key={API_KEY}&action=getNumber&service={SERVICE}&country={COUNTRY}&operator={operator}"
 
-        f"{BASE}?api_key={API_KEY}&action=getNumber&service={SERVICE}&country={COUNTRY}&operator={operator}",
-
-        timeout=20
-
-        ).text
+        res=requests.get(url,timeout=20).text
 
 
         if "ACCESS_NUMBER" not in res:
@@ -211,7 +213,7 @@ async def buy_number(q,operator,price):
         )
 
 
-        for i in range(100):
+        for i in range(120):
 
             await asyncio.sleep(3)
 
@@ -235,6 +237,11 @@ async def buy_number(q,operator,price):
                 return
 
 
+            if "STATUS_WAIT_CODE" in st:
+
+                continue
+
+
             if "STATUS_CANCEL" in st:
 
                 return
@@ -243,14 +250,17 @@ async def buy_number(q,operator,price):
         requests.get(
 
         f"{BASE}?api_key={API_KEY}&action=setStatus&id={act}&status=8"
+
         )
 
         await q.message.reply_text("❌ SMS timeout")
 
-    except:
 
-        await q.message.reply_text("❌ API error")
+    except Exception as e:
 
+        print("BUY ERROR:",e)
+
+        await q.message.reply_text("❌ API Error")
 
 
 async def add(update:Update,context:ContextTypes.DEFAULT_TYPE):
@@ -258,7 +268,6 @@ async def add(update:Update,context:ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id!=ADMIN_ID:
 
         return
-
 
     uid=context.args[0]
 
@@ -281,7 +290,6 @@ async def add(update:Update,context:ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Balance added")
 
 
-
 app=ApplicationBuilder().token(BOT_TOKEN).build()
 
 app.add_handler(CommandHandler("start",start))
@@ -289,7 +297,6 @@ app.add_handler(CommandHandler("start",start))
 app.add_handler(CommandHandler("addbalance",add))
 
 app.add_handler(CallbackQueryHandler(button))
-
 
 print("Bot Running...")
 
