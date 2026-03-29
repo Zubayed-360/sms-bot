@@ -77,7 +77,6 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         await q.message.reply_text(f"💰 Balance: {bal}৳")
 
-
     if q.data=="buy":
 
         if db["users"][uid]["balance"]<SELL_PRICE:
@@ -89,9 +88,9 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         await q.message.reply_text("🇿🇦 Finding South Africa number...")
 
-        country = "27"
+        country="27"
 
-        res = requests.get(
+        res=requests.get(
             f"{BASE}?api_key={API_KEY}&action=getNumber&service=tg&country={country}"
         ).text
 
@@ -107,7 +106,17 @@ async def button(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
         act=data[1]
 
-        num=data[2]
+        raw_num=data[2]
+
+
+        # correct number format
+        if raw_num.startswith(country):
+
+            num="+"+raw_num
+
+        else:
+
+            num="+"+country+raw_num
 
 
         db["users"][uid]["balance"]-=SELL_PRICE
