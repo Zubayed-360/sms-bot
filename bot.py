@@ -116,11 +116,6 @@ else:
 
     return
 
-        else:
-
-            num="+"+country+raw_num
-
-
         db["users"][uid]["balance"]-=SELL_PRICE
 
         save(db)
